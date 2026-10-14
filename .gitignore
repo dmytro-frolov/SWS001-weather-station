@@ -1,0 +1,6 @@
+pi_dev
+pi_dev.pub
+__pycache__/
+.env*
+.pio/
+.vscode/

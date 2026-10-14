@@ -1,0 +1,6 @@
+.git
+.pio
+.env*
+pi_dev*
+__pycache__
+*.pdf

@@ -1,0 +1,11 @@
+services:
+  firmware:
+    build: .
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - platformio-core:/root/.platformio
+    command: pio run
+
+volumes:
+  platformio-core:
