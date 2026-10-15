@@ -22,6 +22,15 @@ Load `.agents/skills/rtl433-weather-station/SKILL.md` for capture and temperatur
 - Load `.agents/skills/homeassistant-sensor/SKILL.md` to query live reference temperature and state.
 - Use `ha_sensor.py --temp-only` to feed `--reference-c` into `decode_frames.py` and resolve modulo-256 temperature ambiguity.
 
+## ESP32 + CC1101 wiring
+
+- CSN: GPIO 5 (D5)
+- GDO0: GPIO 4 (D4)
+- MOSI: GPIO 23 (D23)
+- SCK: GPIO 18 (D18)
+- MISO: GPIO 19 (D19)
+- Power: VCC -> 3.3V, GND -> GND
+
 ## Established RF settings
 
 - Frequency: 433.90 MHz
@@ -39,7 +48,9 @@ The PDF `sl22055_protocol_en-1.pdf` is useful background but predates corrected 
 
 ## Current capture status
 
-A 180-second analyzer capture on the Raspberry Pi found a separate strong periodic carrier roughly 220–230 kHz above 433.90 MHz, not a valid sensor PWM frame. Flex-decoder runs with default and automatic thresholds produced only fragmented 0–12-bit rows and no 64-bit row. No new valid balcony frame has yet been captured.
+After changing the antenna and moving the real sensor closer, `rtl_433` decoded valid seven-row bursts and correlated 16.81 °C over RF with a 16.8 °C Home Assistant update about 1.4 seconds later. Reference IQ files are `/opt/rtl433-debug/captures/real-valid-iq/g009_433.9M_2048k.cu8` and `g057_433.9M_2048k.cu8`.
+
+On 2026-10-15, reconnecting GPIO4 to CC1101 GDO0 exposed a byte-order error: rtl_433 received every replay byte bit-reversed. Firmware now sends MSB-first; rtl_433 verified seven exact 64-bit rows with valid checksums repeatedly. Configured 433.940 MHz yielded an IQ peak of 433.901625 MHz versus 433.901750 MHz for the real sensor. At 0 dBm, three complete replay bursts decoded (`/opt/rtl433-debug/captures/cc1101-20261015/sws001-power0-rf.jsonl`), but Home Assistant did not update. Power is now 5 dBm; `tx` still sends the original replay, while `tx25` changes only B3 to E9 and recalculates B7 for all seven rows. `rtl_433` verified all seven `tx25` rows (`sws001-tx25-rf.jsonl` in the same directory), predicting ~24.98 °C with a 25 °C reference. Temperature wraps modulo 256, so the same frame can also represent ~14.09 °C near ambient 16–17 °C. Home Assistant did not update after `tx25` either; station acceptance is still unproven. Compare strength at the station's location before modifying other control bytes.
 
 ## Working order
 

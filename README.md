@@ -2,7 +2,7 @@
 
 PlatformIO firmware for replaying a captured SL22055/SWS001-like 433.90 MHz burst with an ESP32-WROOM and CC1101.
 
-This first milestone sends a fixed seven-row packet for RF waveform verification. It does not yet read a temperature sensor or generate payloads.
+The firmware can replay a captured seven-row packet or transmit a diagnostic seven-row packet for approximately 25 °C. It does not yet read a temperature sensor.
 
 ## Wiring
 
@@ -34,7 +34,7 @@ Wait for:
 Ready: tx
 ```
 
-Send `tx` followed by Enter. The firmware transmits one fixed seven-row burst and prints `TX done`.
+Send `tx` to replay the captured seven-row burst, or `tx25` to transmit ~24.98 °C with the captured control bytes and recalculated checksums. Either command sends one burst and prints `TX done`.
 
 ## Validate fixtures
 
@@ -68,4 +68,10 @@ a5d2fdea552dbbe2
 a5d2fdea592dbbec
 ```
 
-If decoding fails, capture the CC1101 output with `rtl_433 -A` and adjust only the timing constants against the real-sensor baseline before changing any other RF setting.
+If decoding fails, capture the CC1101 output with `rtl_433 -A` and compare bit order, pulse timings, and measured carrier against the real-sensor baseline before changing RF settings.
+
+## Current CC1101 calibration
+
+The firmware transmits the captured bytes MSB-first using one hardware RMT write (eight memory blocks). At configured 433.940 MHz, a saved IQ capture measured the CC1101 peak at 433.901625 MHz; the real sensor's reference IQ peak was 433.901750 MHz. Output power is currently 5 dBm.
+
+After reconnecting GPIO4 to CC1101 GDO0, `rtl_433` decoded all seven exact replay rows with valid checksums. Current output power is **5 dBm** (up from 0 dBm); `tx25` was verified on RF as seven valid rows beginning with `a5d2fde95f2dbbeb` (`/opt/rtl433-debug/captures/cc1101-20261015/sws001-tx25-rf.jsonl` on the Pi). The temperature byte is an empirical modulo-256 model: the same frame can also decode as ~14.09 °C if interpreted near the current 16–17 °C ambient temperature. Home Assistant **did not update** after `tx25`, so weather-station acceptance and its interpretation of this temperature jump remain unproven. Check reception at the station's location before changing the captured control bytes.

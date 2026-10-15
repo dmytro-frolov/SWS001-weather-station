@@ -32,6 +32,11 @@ inline uint8_t checksum(const uint8_t row[kRowSize]) {
   return reverse8(sum);
 }
 
+inline void setTemperatureByte(uint8_t row[kRowSize], uint8_t onAirByte) {
+  row[3] = onAirByte;
+  row[7] = checksum(row);
+}
+
 inline bool validateRow(const uint8_t row[kRowSize]) {
   return row[0] == 0xA5 && row[1] == 0xD2 && row[2] == 0xFD &&
          row[7] == checksum(row);
