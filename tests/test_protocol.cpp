@@ -31,7 +31,9 @@ int main() {
       {30, 0x84, 0x9F, 0x06},  {31.5, 0x7F, 0x1F, 0x3C},
       {41, 0x78, 0x1F, 0x3A},  {9.5, 0xC0, 0xDF, 0x22},
       {0, 0x47, 0xDF, 0xC4},   {-0.5, 0x77, 0xDF, 0xF4},
-      {-1, 0x5F, 0xDF, 0xDC},
+      {-1, 0x5F, 0xDF, 0xDC},  {-1.5, 0xA0, 0x3F, 0xE2},
+      {-5, 0x1A, 0x3F, 0x59},  {-14, 0xD4, 0xBF, 0x76},
+      {-20, 0x1D, 0xBF, 0xDF}, {42.3f, 0x00, 0x1F, 0x7C},
   };
   for (const auto& sample : samples) {
     uint8_t row[sws001::kRowSize];
@@ -40,7 +42,14 @@ int main() {
     assert(row[3] == sample.b3 && row[4] == sample.b4 && row[7] == sample.checksum);
     assert(sws001::validateRow(row));
   }
-  const float invalidValues[] = {-5.0f, -1.5f, 42.0f, NAN, INFINITY};
+  const uint8_t coldRows[][sws001::kRowSize] = {
+      {0xA5, 0xD2, 0xFD, 0x1C, 0xBF, 0x6D, 0x07, 0x01},
+      {0xA5, 0xD2, 0xFD, 0x82, 0xBF, 0x6D, 0xFB, 0x11},
+  };
+  for (const auto& row : coldRows) {
+    assert(sws001::validateRow(row));
+  }
+  const float invalidValues[] = {-21.0f, 42.4f, 43.0f, NAN, INFINITY};
   for (float invalid : invalidValues) {
     uint8_t row[sws001::kRowSize];
     memcpy(row, sws001::kReplayRows[0], sizeof(row));

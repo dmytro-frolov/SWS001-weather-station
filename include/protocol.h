@@ -39,14 +39,14 @@ inline void setTemperatureByte(uint8_t row[kRowSize], uint8_t onAirByte) {
 }
 
 inline bool setTemperature(uint8_t row[kRowSize], float celsius) {
-  if (!isfinite(celsius) || celsius < -1.0f || celsius > 41.0f) {
+  if (!isfinite(celsius) || celsius < -20.0f || celsius > 42.3f) {
     return false;
   }
   const long count = lroundf(482.0f - 23.5f * celsius);
   const int wrap = static_cast<int>(floorf(count / 256.0f));
-  // shortcut: B4 wrap modes are checked near 0, 20, 30 and 41 C; extend after cold-sensor captures.
-  const uint8_t mode = reverse8(static_cast<uint8_t>(wrap + 2)) & 0xC0;
-  row[4] = (row[4] & 0x3F) | mode;
+  // shortcut: B4 aliases outside −20..42.3 C; capture real extremes before extending.
+  const uint8_t mode = reverse8(static_cast<uint8_t>((wrap + 2) & 7)) & 0xE0;
+  row[4] = (row[4] & 0x1F) | mode;
   setTemperatureByte(row, reverse8(static_cast<uint8_t>(count)));
   return true;
 }
