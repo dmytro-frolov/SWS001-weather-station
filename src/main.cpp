@@ -48,18 +48,18 @@ void buildReplayBurst(bool test25) {
     }
     txSymbols[symbolIndex++] = {kSyncHighUs, 1, kLongLowUs, 0};
 
-    for (size_t byteIndex = 0; byteIndex < sws001::kRowSize; ++byteIndex) {
-      for (uint8_t bitIndex = 0; bitIndex < 8; ++bitIndex) {
-        // rtl_433 decodes the captured sensor bytes MSB-first.
-        const bool bit = (row[byteIndex] >> (7 - bitIndex)) & 1;
-        const bool finalBit = byteIndex == sws001::kRowSize - 1 && bitIndex == 7;
-        txSymbols[symbolIndex++] = {
-            bit ? kShortHighUs : kLongHighUs,
-            1,
-            finalBit ? kResetLowUs : (bit ? kLongLowUs : kShortLowUs),
-            0,
-        };
-      }
+    for (size_t bitIndex = 0; bitIndex < 8 * sws001::kRowSize; ++bitIndex) {
+      const bool bit = (row[bitIndex / 8] >> (7 - bitIndex % 8)) & 1;
+      const bool finalBit = bitIndex == 8 * sws001::kRowSize - 1;
+      const size_t next = bitIndex + 1;
+      const bool nextBit = !finalBit && ((row[next / 8] >> (7 - next % 8)) & 1);
+      // The real sensor's LOW gap is paired with the following HIGH pulse.
+      txSymbols[symbolIndex++] = {
+          bit ? kShortHighUs : kLongHighUs,
+          1,
+          finalBit ? kResetLowUs : (nextBit ? kLongLowUs : kShortLowUs),
+          0,
+      };
     }
   }
 }

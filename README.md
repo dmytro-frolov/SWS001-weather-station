@@ -34,7 +34,7 @@ Wait for:
 Ready: tx
 ```
 
-Send `tx` to replay the captured seven-row burst, or `tx25` to transmit ~24.98 °C with the captured control bytes and recalculated checksums. Either command sends one burst and prints `TX done`.
+Send `tx` to replay the captured seven-row burst, or `tx25` to transmit the temperature byte corresponding to ~24.98 °C with the captured control bytes and recalculated checksums. Either command sends one burst and prints `TX done`. Because the temperature field wraps, the station currently displays **14.1 °C** for `tx25` when its previous reading is near 17 °C.
 
 ## Validate fixtures
 
@@ -74,4 +74,4 @@ If decoding fails, capture the CC1101 output with `rtl_433 -A` and compare bit o
 
 The firmware transmits the captured bytes MSB-first using one hardware RMT write (eight memory blocks). At configured 433.940 MHz, a saved IQ capture measured the CC1101 peak at 433.901625 MHz; the real sensor's reference IQ peak was 433.901750 MHz. Output power is currently 5 dBm.
 
-After reconnecting GPIO4 to CC1101 GDO0, `rtl_433` decoded all seven exact replay rows with valid checksums. Current output power is **5 dBm** (up from 0 dBm); `tx25` was verified on RF as seven valid rows beginning with `a5d2fde95f2dbbeb` (`/opt/rtl433-debug/captures/cc1101-20261015/sws001-tx25-rf.jsonl` on the Pi). The temperature byte is an empirical modulo-256 model: the same frame can also decode as ~14.09 °C if interpreted near the current 16–17 °C ambient temperature. Home Assistant **did not update** after `tx25`, so weather-station acceptance and its interpretation of this temperature jump remain unproven. Check reception at the station's location before changing the captured control bytes.
+The real sensor uses two LOW gaps (~490/991 µs), **chosen according to the following HIGH bit**: LOW + next HIGH is ~1505 µs. Initially our ESP used the preceding bit, so `rtl_433` decoded the bytes while the station rejected the waveform. After correcting this phase on 2026-10-16, the station accepted the ESP: `tx25` changed HA from 17.7 to 14.1 °C at 15:57:28 UTC; `tx` changed HA from 17.7 to 16.8 °C at 15:59:06 UTC, both within one second of transmission. The `tx25` wrap is empirical and must be resolved before relying on arbitrary synthetic temperatures. The fresh real-sensor IQ and post-fix ESP IQ are on the Pi under `/opt/rtl433-debug/captures/compare-fixedgain-real-20261015/` and `/opt/rtl433-debug/captures/compare-gapphase-esp-20261015/`. Output power remains **5 dBm**.

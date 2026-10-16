@@ -50,12 +50,12 @@ The PDF `sl22055_protocol_en-1.pdf` is useful background but predates corrected 
 
 After changing the antenna and moving the real sensor closer, `rtl_433` decoded valid seven-row bursts and correlated 16.81 °C over RF with a 16.8 °C Home Assistant update about 1.4 seconds later. Reference IQ files are `/opt/rtl433-debug/captures/real-valid-iq/g009_433.9M_2048k.cu8` and `g057_433.9M_2048k.cu8`.
 
-On 2026-10-15, reconnecting GPIO4 to CC1101 GDO0 exposed a byte-order error: rtl_433 received every replay byte bit-reversed. Firmware now sends MSB-first; rtl_433 verified seven exact 64-bit rows with valid checksums repeatedly. Configured 433.940 MHz yielded an IQ peak of 433.901625 MHz versus 433.901750 MHz for the real sensor. At 0 dBm, three complete replay bursts decoded (`/opt/rtl433-debug/captures/cc1101-20261015/sws001-power0-rf.jsonl`), but Home Assistant did not update. Power is now 5 dBm; `tx` still sends the original replay, while `tx25` changes only B3 to E9 and recalculates B7 for all seven rows. `rtl_433` verified all seven `tx25` rows (`sws001-tx25-rf.jsonl` in the same directory), predicting ~24.98 °C with a 25 °C reference. Temperature wraps modulo 256, so the same frame can also represent ~14.09 °C near ambient 16–17 °C. Home Assistant did not update after `tx25` either; station acceptance is still unproven. Compare strength at the station's location before modifying other control bytes.
+On 2026-10-16 a fresh real-sensor seven-row burst at 23:42:35 (~16.55 °C) correlated with an HA update to 16.6 °C at 20:42:36 UTC. IQ measured the real carrier ~433.9018 MHz versus ESP ~433.9016 MHz. The blocking TX flaw was **LOW-gap phase**, not a fixed LOW gap: on the real sensor, 490/991 µs LOW is selected by the *following* 1017/515 µs HIGH bit (LOW + next HIGH ~1505 µs). The old ESP selected by the preceding bit; rtl_433 decoded exact bytes but the station did not accept them. Firmware now sends MSB-first with the corrected gap phase, configured 433.940 MHz / 5 dBm. Station acceptance is proven: `tx25` changed HA 17.7→14.1 °C at 15:57:28 UTC, ~0.45 s after TX started; `tx` changed HA 17.7→16.8 °C at 15:59:06 UTC, ~0.56 s after TX started. The `tx25` byte E9 also models ~24.98 °C modulo 256, but the station chooses ~14.1 °C near ambient; arbitrary synthetic temperatures still need wrap handling. IQ: `/opt/rtl433-debug/captures/compare-fixedgain-real-20261015/` and `/opt/rtl433-debug/captures/compare-gapphase-esp-20261015/`.
 
 ## Working order
 
 1. Capture a real `a5d2fd` 64-bit frame with `rtl_433`.
 2. Save raw timing/IQ from the real sensor.
 3. Capture the CC1101 waveform under identical settings.
-4. Fix physical pulse shape and framing until bytes decode identically.
-5. Then adjust temperature and checksum; keep known-good control bytes.
+4. Match physical pulse shape, including LOW-gap phase, not just bytes decoded by rtl_433.
+5. Validate weather-station/HA acceptance, then resolve temperature wrap before generating arbitrary readings; keep known-good control bytes.
