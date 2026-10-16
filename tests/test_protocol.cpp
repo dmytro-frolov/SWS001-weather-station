@@ -22,4 +22,29 @@ int main() {
     assert(row[3] == 0xE9 && row[7] == expectedChecksums[i]);
     assert(sws001::kReplayRows[i][3] == 0xEA);
   }
+
+  const struct {
+    float celsius;
+    uint8_t b3, b4, checksum;
+  } samples[] = {
+      {20, 0x30, 0x5F, 0x32},  {23, 0xA3, 0x9F, 0x20},
+      {30, 0x84, 0x9F, 0x06},  {31.5, 0x7F, 0x1F, 0x3C},
+      {41, 0x78, 0x1F, 0x3A},  {9.5, 0xC0, 0xDF, 0x22},
+      {0, 0x47, 0xDF, 0xC4},   {-0.5, 0x77, 0xDF, 0xF4},
+      {-1, 0x5F, 0xDF, 0xDC},
+  };
+  for (const auto& sample : samples) {
+    uint8_t row[sws001::kRowSize];
+    memcpy(row, sws001::kReplayRows[0], sizeof(row));
+    assert(sws001::setTemperature(row, sample.celsius));
+    assert(row[3] == sample.b3 && row[4] == sample.b4 && row[7] == sample.checksum);
+    assert(sws001::validateRow(row));
+  }
+  const float invalidValues[] = {-5.0f, -1.5f, 42.0f, NAN, INFINITY};
+  for (float invalid : invalidValues) {
+    uint8_t row[sws001::kRowSize];
+    memcpy(row, sws001::kReplayRows[0], sizeof(row));
+    assert(!sws001::setTemperature(row, invalid));
+    assert(memcmp(row, sws001::kReplayRows[0], sizeof(row)) == 0);
+  }
 }

@@ -2,6 +2,8 @@
 #include <RadioLib.h>
 #include <SPI.h>
 #include <esp32-hal-rmt.h>
+#include <errno.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "protocol.h"
@@ -11,8 +13,6 @@ namespace {
 const int kPinCs = 5;
 const int kPinGdo0 = 4;
 const int8_t kOutputPowerDbm = 5;
-// 151 logical counts unwraps to ~24.98 C; other wraps differ by ~10.89 C.
-const uint8_t kTest25Byte = 0xE9;
 // IQ captures measured ~433.8949 MHz here; tune near the real sensor's ~433.9017 MHz.
 const float kConfiguredFrequencyMhz = 433.940;
 
@@ -38,13 +38,13 @@ void halt(const char* stage, int16_t state) {
   }
 }
 
-void buildReplayBurst(bool test25) {
+bool buildReplayBurst(bool replay, float celsius) {
   size_t symbolIndex = 0;
   for (size_t rowIndex = 0; rowIndex < sws001::kRowCount; ++rowIndex) {
     uint8_t row[sws001::kRowSize];
     memcpy(row, sws001::kReplayRows[rowIndex], sizeof(row));
-    if (test25) {
-      sws001::setTemperatureByte(row, kTest25Byte);
+    if (!replay && !sws001::setTemperature(row, celsius)) {
+      return false;
     }
     txSymbols[symbolIndex++] = {kSyncHighUs, 1, kLongLowUs, 0};
 
@@ -62,6 +62,7 @@ void buildReplayBurst(bool test25) {
       };
     }
   }
+  return true;
 }
 
 bool sendReplayBurst() {
@@ -125,12 +126,26 @@ void loop() {
 
   String command = Serial.readStringUntil('\n');
   command.trim();
-  if (command != "tx" && command != "tx25") {
-    Serial.println("Use: tx or tx25");
-    return;
+  float celsius = 0;
+  if (command != "tx") {
+    if (!command.startsWith("tx ")) {
+      Serial.println("Use: tx or tx <celsius>");
+      return;
+    }
+    const char* number = command.c_str() + 3;
+    char* end;
+    errno = 0;
+    celsius = strtof(number, &end);
+    if (errno || number == end || *end || !isfinite(celsius)) {
+      Serial.println("Invalid temperature");
+      return;
+    }
   }
 
-  buildReplayBurst(command == "tx25");
+  if (!buildReplayBurst(command == "tx", celsius)) {
+    Serial.println("Unsupported temperature");
+    return;
+  }
   if (sendReplayBurst()) {
     Serial.println("TX done");
   } else {

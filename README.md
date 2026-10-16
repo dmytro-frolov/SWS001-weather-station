@@ -2,7 +2,7 @@
 
 PlatformIO firmware for replaying a captured SL22055/SWS001-like 433.90 MHz burst with an ESP32-WROOM and CC1101.
 
-The firmware can replay a captured seven-row packet or transmit a diagnostic seven-row packet for approximately 25 °C. It does not yet read a temperature sensor.
+The firmware can replay a captured seven-row packet or encode a requested temperature from −1 to 41 °C. It does not yet read a temperature sensor.
 
 ## Wiring
 
@@ -34,7 +34,7 @@ Wait for:
 Ready: tx
 ```
 
-Send `tx` to replay the captured seven-row burst, or `tx25` to transmit the temperature byte corresponding to ~24.98 °C with the captured control bytes and recalculated checksums. Either command sends one burst and prints `TX done`. Because the temperature field wraps, the station currently displays **14.1 °C** for `tx25` when its previous reading is near 17 °C.
+Send `tx` to replay the captured burst unchanged, or `tx <celsius>` (for example `tx 41` or `tx -0.5`) to encode and send one burst. Input must be a finite number between **−1 and 41 °C**; unsupported or malformed input sends nothing. The firmware updates B3, the wrap-dependent B4 control bits, and the checksum in all seven rows. The empirical model may differ from the station's displayed value by ~0.1 °C.
 
 ## Validate fixtures
 
@@ -74,4 +74,4 @@ If decoding fails, capture the CC1101 output with `rtl_433 -A` and compare bit o
 
 The firmware transmits the captured bytes MSB-first using one hardware RMT write (eight memory blocks). At configured 433.940 MHz, a saved IQ capture measured the CC1101 peak at 433.901625 MHz; the real sensor's reference IQ peak was 433.901750 MHz. Output power is currently 5 dBm.
 
-The real sensor uses two LOW gaps (~490/991 µs), **chosen according to the following HIGH bit**: LOW + next HIGH is ~1505 µs. Initially our ESP used the preceding bit, so `rtl_433` decoded the bytes while the station rejected the waveform. After correcting this phase on 2026-10-16, the station accepted the ESP: `tx25` changed HA from 17.7 to 14.1 °C at 15:57:28 UTC; `tx` changed HA from 17.7 to 16.8 °C at 15:59:06 UTC, both within one second of transmission. The `tx25` wrap is empirical and must be resolved before relying on arbitrary synthetic temperatures. The fresh real-sensor IQ and post-fix ESP IQ are on the Pi under `/opt/rtl433-debug/captures/compare-fixedgain-real-20261015/` and `/opt/rtl433-debug/captures/compare-gapphase-esp-20261015/`. Output power remains **5 dBm**.
+The real sensor uses two LOW gaps (~490/991 µs), **chosen according to the following HIGH bit**: LOW + next HIGH is ~1505 µs. Initially our ESP used the preceding bit, so `rtl_433` decoded the bytes while the station rejected the waveform. Correcting the gap phase made the station accept `tx` (HA 16.8 °C). Changing only B3 in the old B4=`5F` mode produced 20.0 °C for `tx20`, but **12.1 °C for nominal `tx23`** and 14.1 °C for nominal `tx25`: the station does not choose the nearest wrap based on its previous temperature. Captured real frames above 20 °C use B4=`9F`; switching that field in the diagnostic burst produced **23.0, 25.0, and 26.0 °C in HA** within ~0.5 s of each TX on 2026-10-16. The numeric encoder computes B3 from an empirical ~23.5-counts/°C model and uses the high two B4 bits to carry the modulo-256 wrap. Additional station tests on 2026-10-16: `tx 30` → HA **30.1 °C**, `tx 41` → **41.1 °C**, `tx 0` → **−0.1 °C**, and `tx -0.5` → **−0.6 °C**, each within ~0.6 s and with seven decoded 64-bit RF rows. **Do not extrapolate below −1 °C:** `tx -5` gave **38.6 °C** with both tried B4 variants (`1F` and `1E`), revealing an unresolved extra range distinction. Firmware rejects temperatures below −1 °C until a real cold-sensor capture resolves it. Logs: `/opt/rtl433-debug/captures/temperature-ramp-20261016/` and `/opt/rtl433-debug/captures/numeric-temperature-20261016/` on the Pi. IQ: `/opt/rtl433-debug/captures/compare-fixedgain-real-20261015/` and `/opt/rtl433-debug/captures/compare-gapphase-esp-20261015/`. Output power remains **5 dBm**.

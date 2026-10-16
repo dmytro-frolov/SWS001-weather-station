@@ -1,5 +1,6 @@
 #pragma once
 
+#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -35,6 +36,19 @@ inline uint8_t checksum(const uint8_t row[kRowSize]) {
 inline void setTemperatureByte(uint8_t row[kRowSize], uint8_t onAirByte) {
   row[3] = onAirByte;
   row[7] = checksum(row);
+}
+
+inline bool setTemperature(uint8_t row[kRowSize], float celsius) {
+  if (!isfinite(celsius) || celsius < -1.0f || celsius > 41.0f) {
+    return false;
+  }
+  const long count = lroundf(482.0f - 23.5f * celsius);
+  const int wrap = static_cast<int>(floorf(count / 256.0f));
+  // shortcut: B4 wrap modes are checked near 0, 20, 30 and 41 C; extend after cold-sensor captures.
+  const uint8_t mode = reverse8(static_cast<uint8_t>(wrap + 2)) & 0xC0;
+  row[4] = (row[4] & 0x3F) | mode;
+  setTemperatureByte(row, reverse8(static_cast<uint8_t>(count)));
+  return true;
 }
 
 inline bool validateRow(const uint8_t row[kRowSize]) {
