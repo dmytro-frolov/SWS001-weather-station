@@ -38,12 +38,15 @@ void halt(const char* stage, int16_t state) {
   }
 }
 
-bool buildReplayBurst(bool replay, float celsius) {
+bool buildReplayBurst(bool replay, float celsius, int humidityPercent) {
   size_t symbolIndex = 0;
   for (size_t rowIndex = 0; rowIndex < sws001::kRowCount; ++rowIndex) {
     uint8_t row[sws001::kRowSize];
     memcpy(row, sws001::kReplayRows[rowIndex], sizeof(row));
     if (!replay && !sws001::setTemperature(row, celsius)) {
+      return false;
+    }
+    if (humidityPercent >= 0 && !sws001::setHumidity(row, humidityPercent)) {
       return false;
     }
     txSymbols[symbolIndex++] = {kSyncHighUs, 1, kLongLowUs, 0};
@@ -127,22 +130,37 @@ void loop() {
   String command = Serial.readStringUntil('\n');
   command.trim();
   float celsius = 0;
+  int humidityPercent = -1;
   if (command != "tx") {
     if (!command.startsWith("tx ")) {
-      Serial.println("Use: tx or tx <celsius>");
+      Serial.println("Use: tx or tx <celsius> [humidity]");
       return;
     }
     const char* number = command.c_str() + 3;
     char* end;
     errno = 0;
     celsius = strtof(number, &end);
-    if (errno || number == end || *end || !isfinite(celsius)) {
+    if (errno || number == end || !isfinite(celsius)) {
       Serial.println("Invalid temperature");
       return;
     }
+    if (*end) {
+      if (*end != ' ' || !end[1]) {
+        Serial.println("Invalid humidity");
+        return;
+      }
+      const char* percent = end + 1;
+      errno = 0;
+      long value = strtol(percent, &end, 10);
+      if (errno || percent == end || *end || value < 0 || value > 99) {
+        Serial.println("Invalid humidity");
+        return;
+      }
+      humidityPercent = value;
+    }
   }
 
-  if (!buildReplayBurst(command == "tx", celsius)) {
+  if (!buildReplayBurst(command == "tx", celsius, humidityPercent)) {
     Serial.println("Unsupported temperature");
     return;
   }

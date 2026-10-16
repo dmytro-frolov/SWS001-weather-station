@@ -51,6 +51,16 @@ inline bool setTemperature(uint8_t row[kRowSize], float celsius) {
   return true;
 }
 
+inline bool setHumidity(uint8_t row[kRowSize], int percent) {
+  if (percent < 0 || percent > 99) {
+    return false;
+  }
+  const int counts = (percent * 32 + 24) / 25;
+  row[5] = reverse8(static_cast<uint8_t>(255 - counts));
+  row[7] = checksum(row);
+  return true;
+}
+
 inline bool validateRow(const uint8_t row[kRowSize]) {
   return row[0] == 0xA5 && row[1] == 0xD2 && row[2] == 0xFD &&
          row[7] == checksum(row);

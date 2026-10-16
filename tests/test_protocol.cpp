@@ -42,6 +42,32 @@ int main() {
     assert(row[3] == sample.b3 && row[4] == sample.b4 && row[7] == sample.checksum);
     assert(sws001::validateRow(row));
   }
+  const uint8_t humidityBytes[] = {0x0B, 0x6D, 0x89};
+  const uint8_t humidityChecksums[] = {0xCD, 0x99, 0x2E};
+  for (size_t i = 0; i < sizeof(humidityBytes); ++i) {
+    uint8_t row[sws001::kRowSize];
+    memcpy(row, sws001::kReplayRows[0], sizeof(row));
+    row[5] = humidityBytes[i];
+    row[7] = sws001::checksum(row);
+    assert(row[7] == humidityChecksums[i] && sws001::validateRow(row));
+  }
+  for (int humidity = 0; humidity <= 99; ++humidity) {
+    uint8_t row[sws001::kRowSize];
+    memcpy(row, sws001::kReplayRows[0], sizeof(row));
+    assert(sws001::setHumidity(row, humidity));
+    assert(((255 - sws001::reverse8(row[5])) * 25) / 32 == humidity);
+    assert(sws001::validateRow(row));
+    if (humidity == 85) {
+      assert(row[5] == 0x49 && row[7] == 0xAE);
+    }
+  }
+  const int invalidHumidity[] = {-1, 100};
+  for (int invalid : invalidHumidity) {
+    uint8_t row[sws001::kRowSize];
+    memcpy(row, sws001::kReplayRows[0], sizeof(row));
+    assert(!sws001::setHumidity(row, invalid));
+    assert(memcmp(row, sws001::kReplayRows[0], sizeof(row)) == 0);
+  }
   const uint8_t coldRows[][sws001::kRowSize] = {
       {0xA5, 0xD2, 0xFD, 0x1C, 0xBF, 0x6D, 0x07, 0x01},
       {0xA5, 0xD2, 0xFD, 0x82, 0xBF, 0x6D, 0xFB, 0x11},
