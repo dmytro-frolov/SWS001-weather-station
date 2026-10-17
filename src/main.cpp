@@ -102,6 +102,13 @@ bool sendReplayBurst() {
 #if defined(ESP32)
   return rmtWrite(kPinGdo0, txSymbols, RMT_SYMBOLS_OF(txSymbols), 2000);
 #else
+  int16_t state = radio.transmitDirectAsync();
+  if (state != RADIOLIB_ERR_NONE) {
+    Serial.printf("[CC1101] direct async = %d\n", state);
+    return false;
+  }
+  // TX calibration must finish before the first SYNC pulse.
+  delay(2);
   // shortcut: GPIO busy-waits through the burst; revisit for battery power if measurements warrant it.
   for (const auto& row : txRows) {
     digitalWrite(kPinGdo0, HIGH);
@@ -119,6 +126,11 @@ bool sendReplayBurst() {
     }
   }
   yield();
+  state = radio.standby();
+  if (state != RADIOLIB_ERR_NONE) {
+    Serial.printf("[CC1101] standby = %d\n", state);
+    return false;
+  }
   return true;
 #endif
 }
@@ -177,6 +189,10 @@ void setup() {
     halt("RMT EOT", -1);
   }
 #else
+  state = radio.standby();
+  if (state != RADIOLIB_ERR_NONE) {
+    halt("standby", state);
+  }
   temperatureSensor.begin();
 #endif
   Serial.println("Ready: tx");

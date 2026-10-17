@@ -37,6 +37,8 @@ D1 mini on `/dev/cu.usbserial-212110` is an ESP8266EX. CC1101 wiring: D5 SCK, D6
 
 On 2026-10-17 two automatic D1 mini reports 128 s apart: DS18B20 **22.75 → 22.69 °C**, RF **22.77 → 22.68 °C** (seven checksum-valid rows each, B5=`FF`), HA **22.8 → 22.7 °C / 0%** at 19:12:19 and 19:14:27 UTC. An additional hardware reset produced a valid automatic seven-row RF burst immediately on boot. IQ of the first automatic burst again showed LOW + next HIGH ~1511 µs. Captures: `/opt/rtl433-debug/captures/d1-mini-ds18b20-20261017/` on the Pi. The original sensor was **still transmitting** ~18 °C / 61% frames during testing (22:10:59 and 22:14:11 Pi time); turn it off to prevent alternating HA readings under the shared ID. Battery draw remains unmeasured; deep sleep is not implemented.
 
+Later on 2026-10-17 the D1 firmware began placing **CC1101 in standby (IDLE) between bursts** while leaving ESP8266 awake. `sendReplayBurst()` restarts direct asynchronous TX, waits 2 ms for calibration before the first SYNC, sends the unchanged seven-row waveform, then checks `radio.standby()`; the same path handles manual and automatic sends. Hardware validation: DS18B20 **22.81 °C** → HA **22.8 °C / 0%**; exact manual `tx` replay → HA **16.8 °C / 58%**; 128 s after the first auto send DS18B20 **23.12 °C** → HA **23.1 °C / 0%**. All three RF bursts decoded seven checksum-valid rows; IQ LOW + next HIGH remained ~1511 µs. Evidence: `/opt/rtl433-debug/captures/d1-mini-standby-20261017/` on the Pi. Power savings were not measured; do not mistake standby for CC1101 POWER_DOWN or ESP8266 deep sleep. ESP32 path remains unchanged.
+
 ## Established RF settings
 
 - Frequency: 433.90 MHz
