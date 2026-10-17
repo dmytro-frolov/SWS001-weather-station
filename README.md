@@ -1,6 +1,6 @@
 # SWS001 weather-station transmitter
 
-PlatformIO firmware for replaying a captured SL22055/SWS001-like 433.90 MHz burst with an ESP32-WROOM and CC1101.
+PlatformIO firmware for replaying a captured SL22055/SWS001-like 433.90 MHz burst with a CC1101 and either an ESP32-WROOM or an ESP8266 D1 mini.
 
 The firmware can replay a captured seven-row packet or encode a requested temperature (−20…42.3 °C) and optional humidity (0…99%). It does not yet read a sensor.
 
@@ -16,15 +16,28 @@ The firmware can replay a captured seven-row packet or encode a requested temper
 | CSN | GPIO5 |
 | GDO0 | GPIO4 |
 
+For a standard **ESP8266 D1 mini** instead:
+
+| Device | D1 mini |
+|---|---|
+| CC1101 SCK / MISO / MOSI | D5 / D6 / D7 |
+| CC1101 CSN / GDO0 | D1 / D2 |
+| CC1101 VCC / GND | 3.3 V / GND |
+| DS18B20 DATA (optional, not read yet) | D4, 4.7 kΩ pull-up to 3.3 V |
+| DS18B20 VCC / GND | 3.3 V / GND |
+
+D4 must stay HIGH at boot. The firmware does not yet read DS18B20 or sleep; reserve D0 for a future D0→RST deep-sleep wake connection. Never feed 5 V to CC1101.
+
 ## Build
 
 Build in Docker; the named Compose volume caches the PlatformIO toolchain:
 
 ```sh
-docker compose run --rm firmware
+docker compose run --rm firmware                  # ESP32, unchanged default
+docker compose run --rm firmware pio run -e d1_mini # ESP8266 D1 mini
 ```
 
-The resulting image is `.pio/build/esp32dev/firmware.bin`. Flash it with your usual ESP32 uploader, then open the serial monitor at 115200 baud.
+The resulting images are `.pio/build/esp32dev/firmware.bin` and `.pio/build/d1_mini/firmware.bin`. Flash the appropriate image for your board, then open the serial monitor at 115200 baud.
 
 Wait for:
 
@@ -72,7 +85,9 @@ If decoding fails, capture the CC1101 output with `rtl_433 -A` and compare bit o
 
 ## Current CC1101 calibration
 
-The firmware transmits the captured bytes MSB-first using one hardware RMT write (eight memory blocks). At configured 433.940 MHz, a saved IQ capture measured the CC1101 peak at 433.901625 MHz; the real sensor's reference IQ peak was 433.901750 MHz. Output power is currently 5 dBm.
+The ESP32 transmits the captured bytes MSB-first using one hardware RMT write (eight memory blocks); the D1 mini uses GPIO timing with Wi-Fi disabled. At configured 433.940 MHz, a saved ESP32 IQ capture measured the CC1101 peak at 433.901625 MHz; the real sensor's reference IQ peak was 433.901750 MHz. Output power is currently 5 dBm.
+
+On 2026-10-17 the D1 mini's `tx 33 44` produced seven checksum-valid RF rows (~33.02 °C decoded); the station updated Home Assistant to **33.1 °C / 44%** after ~0.59 s. IQ pulse analysis gave ~521/1017 µs HIGH, ~989/494 µs LOW and LOW + next HIGH ~1511 µs. Captures: `/opt/rtl433-debug/captures/d1-mini-20261017/` on the Pi. The ESP32 was not connected by USB for a same-day side-by-side transmission.
 
 The real sensor uses two LOW gaps (~490/991 µs), **chosen according to the following HIGH bit**: LOW + next HIGH is ~1505 µs. Initially our ESP used the preceding bit, so `rtl_433` decoded the bytes while the station rejected the waveform. Correcting the gap phase made the station accept `tx` (HA 16.8 °C). Changing only B3 in the old B4=`5F` mode produced 20.0 °C for `tx20`, but **12.1 °C for nominal `tx23`** and 14.1 °C for nominal `tx25`: the station does not choose the nearest wrap based on its previous temperature. Captured real frames above 20 °C use B4=`9F`; switching that field in the diagnostic burst produced **23.0, 25.0, and 26.0 °C in HA** within ~0.5 s of each TX on 2026-10-16. The numeric encoder computes B3 from an empirical ~23.5-counts/°C model and uses the high three B4 bits to carry the modulo-256 wrap. Additional station tests on 2026-10-16: `tx 30` → HA **30.1 °C**, `tx 41` → **41.1 °C**, `tx 0` → **−0.1 °C**, and `tx -0.5` → **−0.6 °C**, each within ~0.6 s and with seven decoded 64-bit RF rows. Initially `tx -5` gave **38.6 °C** with B4=`1F` or `1E`. A real sensor cooled in the freezer yielded seven checksum-valid rows at both −14.7 and −15.1 °C with B4=`BF` (e.g. `a5d2fd1cbf6d0701`), revealing the missing **cold bit `0x20`**. With that bit, `tx -5` gave **−5.1 °C** (seven correct RF rows with B4=`3F`), `tx -18` gave **−18.1 °C** in HA, and `tx -20` gave **−20.0 °C** with seven valid RF rows. The validated *emulator* range is −20…42.3 °C (station displays up to ~42.4 °C): `tx -21` (same verified B4=`BF` as `tx -20`) and `tx -24` both displayed **−20.0 °C**; `tx 42.3` displayed **42.4 °C**, while `tx 42.4` was received but displayed **−20.0 °C** due to B4 range aliasing. Inputs outside the validated range are rejected. This does **not** prove the station's true hardware maximum above 42 °C; a real hotter-sensor frame may reveal another flag. Exact rounding still requires validation. Logs: `/opt/rtl433-debug/captures/temperature-ramp-20261016/`, `/opt/rtl433-debug/captures/numeric-temperature-20261016/`, `/opt/rtl433-debug/captures/freezer-20261016-1920/`, and `/opt/rtl433-debug/captures/limit-sweep-20261016/` on the Pi. IQ: `/opt/rtl433-debug/captures/compare-fixedgain-real-20261015/` and `/opt/rtl433-debug/captures/compare-gapphase-esp-20261015/`. Output power remains **5 dBm**.
 

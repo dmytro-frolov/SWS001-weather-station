@@ -42,6 +42,13 @@ int main() {
     assert(row[3] == sample.b3 && row[4] == sample.b4 && row[7] == sample.checksum);
     assert(sws001::validateRow(row));
   }
+  uint8_t combined[sws001::kRowSize];
+  memcpy(combined, sws001::kReplayRows[0], sizeof(combined));
+  assert(sws001::setTemperature(combined, 33));
+  assert(sws001::setHumidity(combined, 44));
+  const uint8_t expected33And44[] = {0xA5, 0xD2, 0xFD, 0x5B, 0x1F, 0x63, 0xBB, 0x54};
+  assert(memcmp(combined, expected33And44, sizeof(combined)) == 0);
+
   const uint8_t humidityBytes[] = {0x0B, 0x6D, 0x89};
   const uint8_t humidityChecksums[] = {0xCD, 0x99, 0x2E};
   for (size_t i = 0; i < sizeof(humidityBytes); ++i) {

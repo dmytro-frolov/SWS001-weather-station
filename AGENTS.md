@@ -31,6 +31,10 @@ Load `.agents/skills/rtl433-weather-station/SKILL.md` for capture and temperatur
 - MISO: GPIO 19 (D19)
 - Power: VCC -> 3.3V, GND -> GND
 
+## ESP8266 D1 mini port (2026-10-17)
+
+D1 mini on `/dev/cu.usbserial-212110` is an ESP8266EX. CC1101 wiring: D5 SCK, D6 MISO, D7 MOSI, D1 CSN, D2 GDO0, 3.3 V/GND; optional DS18B20 DATA D4 with a 4.7 kΩ pull-up to 3.3 V (not yet read by firmware). D4 must stay HIGH during boot; reserve D0 for a future D0→RST deep-sleep wake link. `docker compose run --rm firmware pio run -e d1_mini` builds the ESP8266 firmware; the default Docker build still targets ESP32. ESP8266 has no RMT: the port uses GPIO delays with Wi-Fi off. Flashed D1 mini, then `tx 33 44` produced seven checksum-valid rows (~33.02 °C RF) and HA **33.1 °C / 44%** ~0.59 s after TX start; SDR IQ showed ~521/1017 µs HIGH, ~989/494 µs LOW and LOW + next HIGH ~1511 µs. Evidence: `/opt/rtl433-debug/captures/d1-mini-20261017/` on the Pi. ESP32 was not connected for a same-day side-by-side control TX. Battery draw and DS18B20 reading remain untested/unimplemented.
+
 ## Established RF settings
 
 - Frequency: 433.90 MHz
