@@ -48,6 +48,10 @@ int main() {
   assert(sws001::setHumidity(combined, 44));
   const uint8_t expected33And44[] = {0xA5, 0xD2, 0xFD, 0x5B, 0x1F, 0x63, 0xBB, 0x54};
   assert(memcmp(combined, expected33And44, sizeof(combined)) == 0);
+  memcpy(combined, sws001::kReplayRows[0], sizeof(combined));
+  assert(sws001::setTemperature(combined, 18.125f));
+  assert(sws001::setHumidity(combined, 0));
+  assert(combined[5] == 0xFF && sws001::validateRow(combined));
 
   const uint8_t humidityBytes[] = {0x0B, 0x6D, 0x89};
   const uint8_t humidityChecksums[] = {0xCD, 0x99, 0x2E};
@@ -82,7 +86,7 @@ int main() {
   for (const auto& row : coldRows) {
     assert(sws001::validateRow(row));
   }
-  const float invalidValues[] = {-21.0f, 42.4f, 43.0f, NAN, INFINITY};
+  const float invalidValues[] = {-127.0f, -21.0f, 42.4f, 43.0f, 85.0f, NAN, INFINITY};
   for (float invalid : invalidValues) {
     uint8_t row[sws001::kRowSize];
     memcpy(row, sws001::kReplayRows[0], sizeof(row));

@@ -5,6 +5,8 @@
 #include <esp32-hal-rmt.h>
 #else
 #include <ESP8266WiFi.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 #endif
 #include <errno.h>
 #include <stdlib.h>
@@ -42,6 +44,12 @@ CC1101 radio = new Module(kPinCs, RADIOLIB_NC, RADIOLIB_NC, RADIOLIB_NC,
                           spi, spiSettings);
 
 uint8_t txRows[sws001::kRowCount][sws001::kRowSize];
+#if defined(ESP8266)
+const uint32_t kReportIntervalMs = 128000;
+OneWire oneWire(D4);
+DallasTemperature temperatureSensor(&oneWire);
+uint32_t nextReportMs = 0;
+#endif
 #if defined(ESP32)
 const size_t kSymbolsPerRow = 65;
 rmt_data_t txSymbols[sws001::kRowCount * kSymbolsPerRow];
@@ -168,11 +176,27 @@ void setup() {
   if (!rmtSetEOT(kPinGdo0, LOW)) {
     halt("RMT EOT", -1);
   }
+#else
+  temperatureSensor.begin();
 #endif
   Serial.println("Ready: tx");
 }
 
 void loop() {
+#if defined(ESP8266)
+  if (static_cast<int32_t>(millis() - nextReportMs) >= 0) {
+    nextReportMs = millis() + kReportIntervalMs;
+    temperatureSensor.requestTemperatures();
+    const float celsius = temperatureSensor.getTempCByIndex(0);
+    if (celsius == DEVICE_DISCONNECTED_C || celsius == 85.0f ||
+        !buildReplayBurst(false, celsius, 0)) {
+      Serial.printf("[DS18B20] invalid reading: %.2f C\n", celsius);
+    } else {
+      Serial.printf("[DS18B20] %.2f C; auto TX 0%% RH\n", celsius);
+      Serial.println(sendReplayBurst() ? "Auto TX done" : "Auto TX failed");
+    }
+  }
+#endif
   if (!Serial.available()) {
     return;
   }
