@@ -2,6 +2,14 @@
 
 PlatformIO firmware for replaying a captured SL22055/SWS001-like 433.90 MHz burst with a CC1101 and either an ESP32-WROOM or an ESP8266 D1 mini.
 
+<p align="center">
+  <img src="images/weather-station.webp" alt="RSH-SWS001 Weather Station" width="280"/>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="images/outdoor-sensor.webp" alt="RSH-SWS002 Outdoor Sensor" width="200"/>
+  <br>
+  <em>Target devices: Tuya / Smart Life weather clock (RSH-SWS001) and outdoor sensor (RSH-SWS002 / SL22055)</em>
+</p>
+
 The firmware can replay a captured seven-row packet or encode a requested temperature (−20…42.3 °C) and optional humidity (0…99%). On the D1 mini it also reads a DS18B20 and automatically transmits its temperature every 128 seconds with fixed **0% humidity**. The ESP32 remains manual-only.
 
 ## Wiring
