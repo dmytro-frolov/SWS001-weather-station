@@ -5,7 +5,7 @@ description: Capture, validate, and decode SL22055/SWS001-like 433.90 MHz weathe
 
 # rtl_433 weather station
 
-Use the Raspberry Pi at `pi@192.168.10.30` with the project key `./pi_dev`. The Docker container is `rtl433-debug`; captures live in `/opt/rtl433-debug/captures`.
+Use the Raspberry Pi SDR host (`<user>@<sdr-host-ip>`) with the project key `./pi_dev`. The Docker container is `rtl433-debug`; captures live in `/opt/rtl433-debug/captures`.
 
 ## Safety and receiver ownership
 
@@ -16,7 +16,7 @@ There is one RTL-SDR. Never run OpenWebRX and `rtl_433` against USB simultaneous
 Passive captures observed an automatic burst about every 128 seconds. Run for at least 180 seconds unless the sensor is triggered manually; use 240 seconds when reception is uncertain:
 
 ```sh
-ssh -i ./pi_dev pi@192.168.10.30 '
+ssh -i ./pi_dev <user>@<sdr-host-ip> '
 was_running=$(docker inspect -f "{{.State.Running}}" owrx-mbe 2>/dev/null || echo false)
 restore() { [ "$was_running" = true ] && docker start owrx-mbe >/dev/null || true; }
 trap restore EXIT INT TERM
@@ -51,7 +51,7 @@ python3 .agents/skills/rtl433-weather-station/scripts/decode_frames.py \
 ## Capture raw pulse timing
 
 ```sh
-ssh -i ./pi_dev pi@192.168.10.30 \
+ssh -i ./pi_dev <user>@<sdr-host-ip> \
   '/opt/stacks/rtl433-debug/capture.sh real-sensor 180'
 ```
 

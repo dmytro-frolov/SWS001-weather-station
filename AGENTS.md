@@ -6,8 +6,8 @@ Reproduce the SL22055-marked balcony weather sensor with ESP32 + CC1101. First m
 
 ## Raspberry Pi SDR host
 
-- SSH: `pi@192.168.10.30` using `./pi_dev`
-- Dockge: `http://192.168.10.30:5001/`
+- SSH: `<user>@<sdr-host-ip>` using `./pi_dev`
+- Dockge: `http://<sdr-host-ip>:5001/`
 - Debug stack: `/opt/stacks/rtl433-debug/compose.yaml`
 - Debug container: `rtl433-debug`
 - Captures: `/opt/rtl433-debug/captures//`
@@ -54,7 +54,7 @@ The byte-reversed additive checksum is validated. The temperature mapping is a s
 
 Button experiment (2026-10-17): two short presses of the real sensor immediately produced normal seven-row temperature/humidity bursts at 22:25:22 and 22:29:35 Pi time; each had B4 bit `0x01` **clear** in all seven rows (first B4=`9E`). Scheduled real-sensor bursts at 22:27:32 and 22:29:40 had that bit **set** (first B4=`9F`); the scheduled burst occurred just five seconds after the second press, so the button did not reset the ~128 s cadence. The second button burst and preceding regular burst had identical B5=`5D` and B6=`7B`; B3 moved by one temperature count, B4 lost `0x01`, and B7 updated accordingly. HA history followed both pressed bursts within ~0.8 s (22.7 °C / 53% and 22.8 °C / 53%) and the next regular burst (22.7 °C / 55%). This strongly supports a **manual TX/test flag** in B4 bit 0, not a separate RF frame; whether that bit directly triggers the station's beep is unproven without a controlled bit-only TX. Evidence: `/opt/rtl433-debug/captures/button-20261017T192449Z/` on the Pi. Do not conflate B4 bit 0 with its empirically tested high temperature/wrap bits.
 
-The PDF `sl22055_protocol_en-1.pdf` is useful background but predates corrected qualifications in the handoff documents. Do not treat its B4 or page-dependent humidity claims as established.
+Early protocol documentation predates corrected qualifications in the handoff documents. Do not treat early B4 or page-dependent humidity claims as established.
 
 ## Current capture status
 
